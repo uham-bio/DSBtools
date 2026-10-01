@@ -1,0 +1,43 @@
+Package: DSBtools
+Type: Package
+Title: Teaching Tools for Automatic Exploratory Data Analysis
+Version: 0.1.0
+Authors@R: c(person("Saskia", "Otto", email = "saskia.a.otto@gmail.com",
+    role = c("aut","cre", "cph"),
+    comment = c(ORCID = "0000-0001-7780-1322")))
+Description: Teaching-oriented tools for exploratory data analysis in
+    introductory data science courses. Functions automatically determine the
+    scale of measurement (nominal, ordinal, discrete, or continuous) of the
+    variables and produce annotated figures and tables: exploring one or two
+    variables, checking a data frame for common data-quality pitfalls,
+    suggesting a suitable statistical test, and assessing normality. All output
+    is available in English and German.
+License: MIT + file LICENSE
+URL: https://github.com/uham-bio/DSBtools
+BugReports: https://github.com/uham-bio/DSBtools/issues
+Encoding: UTF-8
+Language: en-US
+Depends:
+    R (>= 4.0.0)
+Imports:
+    cli,
+    ggplot2 (>= 4.0.0),
+    gridExtra,
+    patchwork,
+    pillar,
+    rlang,
+    scales,
+    stats,
+    tibble,
+    utils
+Suggests:
+    knitr,
+    moments,
+    rmarkdown,
+    testthat (>= 3.0.0),
+    vdiffr,
+    withr
+VignetteBuilder: knitr
+Config/testthat/edition: 3
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3

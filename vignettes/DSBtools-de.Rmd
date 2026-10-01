@@ -1,0 +1,126 @@
+---
+title: "Erste Schritte mit DSBtools"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Erste Schritte mit DSBtools}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment  = "#>",
+  warning  = FALSE,
+  fig.width  = 8,
+  fig.height = 5,
+  out.width  = "100%"
+)
+```
+
+`DSBtools` enthält Funktionen für die ersten Schritte einer Datenanalyse und wurde speziell für die Lehre entwickelt. Im Mittelpunkt steht das **Skalenniveau** einer Variable (nominal, ordinal, diskret oder kontinuierlich), denn es bestimmt, welche Grafiken und Kennzahlen sinnvoll sind. Jede Funktion erkennt das Skalenniveau automatisch anhand der Speicherung in R und wählt darauf basierend die passende Ausgabe.
+
+```{r setup}
+library(DSBtools)
+
+# Alle Ausgaben (Grafiken, Tabellen, Hinweise) auf Deutsch:
+options(DSBtools.language = "de")
+```
+
+Als Beispiele dienen zwei Datensätze, die in R bereits enthalten sind: `iris` (vier Messgrößen für drei Arten, ohne fehlende Werte) und `airquality` (tägliche Luftqualitätsmessungen aus dem Jahr 1973 mit einigen typischen Eigenheiten realer Daten).
+
+## 1. Datenprüfung: `check_df()`
+
+Bevor du mit Grafiken oder Statistik beginnst, solltest du dir einen Überblick über den gesamten Datensatz verschaffen. `check_df()` gibt dazu für jede Spalte den erkannten Typ, die Anzahl fehlender Werte und die Anzahl verschiedener Werte in der Konsole aus. Außerdem weist die Funktion auf typische Probleme hin, die am Anfang leicht übersehen werden: als Zahlen kodierte Kategorien, als `double` gespeicherte Zählwerte, Schreibvarianten derselben Kategorie, als Text gespeicherte Zahlen sowie Ausreißer.
+
+```{r check-df}
+check_df(airquality)
+```
+
+Das Ergebnis wird zusätzlich als benannte Liste mit den Tabellen `$overview` und `$issues` zurückgegeben, sodass du damit weiterarbeiten kannst (z. B. `check_df(airquality)$issues`).
+
+Hier fallen zwei Dinge auf: Zum einen enthalten `Ozone` und `Solar.R` **fehlende Werte**, zum anderen wird `Month` als mögliche **Kodierung von Kategorien** markiert. Die Spalte ist zwar als Zahl gespeichert (5–9), steht aber eigentlich für eine Kategorie. Die Hinweise sollen dich zum genaueren Hinschauen anregen; deine Daten werden dabei nicht verändert.
+
+## 2. Einzelne Variablen: `explore_var()` und `describe_var()`
+
+`explore_var()` erzeugt die zum Variablentyp passenden Grafiken sowie eine Tabelle mit Kennzahlen. Für eine kontinuierliche Variable sind das ein Histogramm mit Dichtekurve und ein Boxplot:
+
+```{r explore-continuous}
+explore_var(airquality$Wind, xlab = "Windgeschwindigkeit (mph)")
+```
+
+Dieselben Kennzahlen bekommst du mit `describe_var()` als Tabelle (*Tibble*) mit numerischen, ungerundeten Werten. Die Spaltennamen sind dabei unabhängig von der Sprachoption immer englisch, damit dein Code in beiden Sprachen gleich funktioniert. Die Funktion fasst jeweils **eine** Variable zusammen und gibt immer eine benannte Liste mit den Tabellen `numeric` und `categorical` zurück; die nicht zutreffende bleibt leer. Die Spalten von `numeric` sind inhaltlich gruppiert: Stichprobengröße, Lage (Mittelwert, Median), Streuung (SD, Varianz, IQR, Min/Max), Form (Schiefe, Kurtosis) und Inferenz (SE, 95%-KI).
+
+```{r describe-one}
+describe_var(airquality$Wind)
+```
+
+Mit dem Argument `by` kannst du eine Variable getrennt für die Gruppen einer oder mehrerer kategorialer Variablen zusammenfassen. Jede Gruppierungsvariable erscheint dabei als eigene Spalte am Anfang der Tabelle:
+
+```{r describe-by}
+describe_var(iris$Sepal.Length, by = iris$Species)$numeric
+```
+
+Für den gesamten Datensatz gibt es `describe_df()`. Numerische Spalten erscheinen in `numeric`, kategoriale in `categorical`, standardmäßig als kompakte Übersicht mit einer Zeile pro Variable (Typ, fehlende Werte, Anzahl der Kategorien, Modus):
+
+```{r describe-df}
+describe_df(iris)
+```
+
+Mit `frequencies = TRUE` erhältst du stattdessen die vollständige Häufigkeitstabelle im Langformat. Bei nominalen Variablen mit vielen Kategorien begrenzt `max_categories` (Option `DSBtools.max_categories`, Standardwert 10) die Ausgabe auf die häufigsten Kategorien und fasst die übrigen unter `"(sonstige)"` zusammen. Zusätzlich weist `describe_df()` auf Spalten hin, die vermutlich Kennungen (IDs) enthalten, sowie auf auffällige Kodierungen wie ganzzahlige Codes.
+
+Wie `check_df()` bereits angezeigt hat, ist `Month` zwar als Zahl gespeichert, steht inhaltlich aber für eine geordnete Kategorie. Mit dem Argument `x_type` kannst du das Skalenniveau selbst festlegen:
+
+```{r explore-ordinal, fig.height = 3.5}
+explore_var(airquality$Month, x_type = "ordinal", xlab = "Monat")
+```
+
+## 3. Zusammenhänge zwischen zwei Variablen: `explore_var()`
+
+Bei zwei Variablen wählt `explore_var()` die Darstellung anhand der Kombination beider Skalenniveaus. Zwei numerische Variablen ergeben ein Streudiagramm mit Regressionsgerade und LOESS-Glättung, ergänzt um die Regressionsgleichung, das Bestimmtheitsmaß (R²) und den Korrelationskoeffizienten nach Pearson (*r*):
+
+```{r explore-num-num, fig.height = 6}
+explore_var(airquality$Temp, airquality$Ozone,
+            x_type = "continuous", y_type = "continuous",
+            xlab = "Temperatur (°F)", ylab = "Ozon (ppb)")
+```
+
+Bei einer kategorialen und einer numerischen Variable werden die Gruppen mit Boxplots, Violinplots und Gruppenmittelwerten mit 95%-Konfidenzintervallen verglichen, ergänzt um eine Kennzahlentabelle je Gruppe:
+
+```{r explore-cat-num, fig.height = 6}
+explore_var(iris$Species, iris$Sepal.Length,
+            xlab = "Art", ylab = "Kelchblattlänge (cm)")
+```
+
+## 4. Den gesamten Datensatz visualisieren: `explore_df()`
+
+`explore_df()` wendet `explore_var()` auf jede Spalte an und gibt in der Konsole eine kompakte Liste der Spalten mit ihren erkannten Typen aus. Gibst du mit `target` eine Zielvariable an, wird jede Variable dieser Zielvariable gegenübergestellt. So kannst du schnell sichten, welche Variablen mit der Zielgröße zusammenhängen könnten. Gemeinsame Darstellungsargumente wie `color` oder `bins` gelten für jede Spalte; spaltenspezifische Einstellungen (Beschriftungen, Typen) gibt es nicht. Um das Skalenniveau einer Spalte festzulegen, kodiere sie vorab entsprechend in den Daten (z. B. mit `factor()`). Im folgenden Beispiel werden alle Messgrößen in `iris` den Arten gegenübergestellt:
+
+```{r explore-df, fig.height = 6}
+explore_df(iris, target = "Species")
+```
+
+## 5. Prüfung auf Normalverteilung: `check_normality()`
+
+Viele klassische Tests setzen annähernd normalverteilte Daten voraus. `check_normality()` stellt dazu ein Histogramm mit angepasster Normalverteilungskurve einem Q-Q-Diagramm gegenüber, gibt Schiefe und Kurtosis an und erklärt, wie du beide Grafiken liest.
+
+```{r check-normality, fig.height = 4}
+check_normality(airquality$Ozone, xlab = "Ozon (ppb)")
+```
+
+`Ozone` ist deutlich rechtsschief: Das siehst du am langen Auslauf im Histogramm und an der gekrümmten Abweichung von der Referenzlinie im Q-Q-Diagramm. Ein rangbasierter Test dürfte hier daher die bessere Wahl sein. Im Vergleich dazu liegt die Kelchblattlänge deutlich näher an einer Normalverteilung:
+
+```{r check-normality-normal, fig.height = 4}
+check_normality(iris$Sepal.Length, xlab = "Kelchblattlänge (cm)")
+```
+
+## Sprache der Ausgabe
+
+Alle Ausgaben gibt es auf Deutsch und Englisch. Du kannst die Sprache entweder einmal für die gesamte Sitzung über eine Option festlegen oder für einzelne Aufrufe über das Argument `language`:
+
+```{r language, eval = FALSE}
+options(DSBtools.language = "en")               # Englisch für die gesamte Sitzung
+explore_var(airquality$Wind, language = "de")   # Deutsch für einen einzelnen Aufruf
+```
+
+Eine englische Fassung dieser Einführung findest du unter `vignette("DSBtools", package = "DSBtools")`. Alle Argumente und Optionen sind in den Hilfeseiten beschrieben (`?check_df`, `?describe_var`, `?describe_df`, `?explore_var`, `?explore_df` und `?check_normality`).
